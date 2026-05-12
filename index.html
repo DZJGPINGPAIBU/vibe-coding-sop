@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Coding 设计工作流 SOP</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --accent-emphasis: #1f6feb;
+    --success: #3fb950;
+    --warning: #d2991d;
+    --code-bg: #1c2128;
+    --sidebar-width: 260px;
+    --content-max-width: 1100px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 20px 0;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-header {
+    padding: 0 18px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .sidebar-header .badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--accent-emphasis);
+    color: #fff;
+    border-radius: 10px;
+  }
+
+  .sidebar-nav { list-style: none; padding: 0 10px; }
+
+  .sidebar-nav li { margin: 1px 0; }
+
+  .sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  .sidebar-nav a:hover { background: var(--bg-tertiary); color: var(--text); }
+
+  .sidebar-nav a.active {
+    background: var(--accent-emphasis);
+    color: #fff;
+  }
+
+  .sidebar-nav .chapter-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 5px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+
+  .sidebar-nav a.active .chapter-num {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+  }
+
+  .sidebar-nav .sub-nav a { padding-left: 40px; font-size: 12px; }
+
+  .sidebar-nav .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 10px;
+    opacity: 0.5;
+  }
+
+  /* ===== Main Content ===== */
+  .main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 64px 80px;
+  }
+
+  .content-inner {
+    max-width: var(--content-max-width);
+    width: 100%;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    padding: 24px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .hero .subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    max-width: 700px;
+  }
+
+  .hero .meta {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  /* ===== Chapter Sections ===== */
+  .chapter {
+    margin-bottom: 56px;
+    scroll-margin-top: 24px;
+  }
+
+  .chapter-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .chapter-num-big {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    font-size: 17px;
+    font-weight: 700;
+    background: var(--accent-emphasis);
+    color: #fff;
+    border-radius: 10px;
+    flex-shrink: 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+
+  .chapter h2 { font-size: 25px; font-weight: 700; }
+  .chapter h3 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 32px 0 14px;
+    color: var(--text);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chapter h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 24px 0 10px;
+    color: var(--accent);
+  }
+
+  .chapter p {
+    margin-bottom: 14px;
+    color: var(--text-secondary);
+    font-size: 15px;
+  }
+
+  /* ===== Info Cards ===== */
+  .info-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 18px 0;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .info-card .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .info-card .content { flex: 1; }
+  .info-card .content strong { display: block; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+  .info-card .content p { font-size: 13px; margin: 0; line-height: 1.6; }
+  .info-card.tip { border-left: 3px solid var(--accent); }
+  .info-card.warning { border-left: 3px solid var(--warning); }
+  .info-card.success { border-left: 3px solid var(--success); }
+
+  /* ===== Step List ===== */
+  .step-list {
+    counter-reset: step;
+    list-style: none;
+    margin: 16px 0;
+  }
+
+  .step-list li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 16px 12px 52px;
+    margin-bottom: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 11px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--bg-tertiary);
+    color: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* ===== Code Block ===== */
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 14px 0;
+    overflow: hidden;
+  }
+
+  .code-block .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .code-block .code-header .lang { font-weight: 600; text-transform: uppercase; }
+
+  .code-block .copy-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    background: var(--bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .code-block .copy-btn:hover { background: var(--bg-tertiary); color: var(--text); }
+
+  .code-block pre {
+    padding: 16px;
+    margin: 0;
+    overflow-x: auto;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #c9d1d9;
+  }
+
+  .code-block .c1 { color: #8b949e; }
+  .code-block .kw { color: #ff7b72; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .var { color: #ffa657; }
+  .code-block .fn { color: #d2a8ff; }
+
+  .inline-code {
+    background: var(--code-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9em;
+    color: #ffa657;
+  }
+
+  /* ===== Image Display ===== */
+  .image-container {
+    margin: 20px 0;
+    text-align: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .image-container img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    padding: 12px;
+    background: #fff;
+    border-radius: 6px;
+    margin: 0 auto;
+  }
+
+  .image-container .image-caption {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    background: var(--bg-tertiary);
+  }
+
+  /* ===== Method Tabs ===== */
+  .method-tabs {
+    display: flex;
+    gap: 0;
+    margin: 16px 0 0;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .method-tab {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+
+  .method-tab:hover { color: var(--text); }
+  .method-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .method-tab .tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    vertical-align: middle;
+  }
+
+  .method-tab .tag.easy { background: #1b3d1b; color: #3fb950; }
+  .method-tab .tag.advanced { background: #3d2e00; color: #d2991d; }
+
+  .method-panel { display: none; padding: 16px 0; }
+  .method-panel.active { display: block; }
+
+  /* ===== URL Link ===== */
+  .url-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--accent);
+    text-decoration: none;
+    transition: all 0.15s;
+    word-break: break-all;
+  }
+
+  .url-link:hover { background: var(--accent-emphasis); color: #fff; border-color: var(--accent-emphasis); }
+
+  /* ===== Table ===== */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  .compare-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .compare-table td {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .compare-table tr:hover td { background: var(--bg-secondary); }
+
+  /* ===== Scroll Progress ===== */
+  .scroll-progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    z-index: 200;
+  }
+
+  /* ===== Back to Top ===== */
+  .back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 150;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+  }
+
+  .back-to-top.visible { opacity: 1; transform: translateY(0); }
+  .back-to-top:hover { background: var(--accent-emphasis); border-color: var(--accent-emphasis); }
+
+  /* ===== Outline Grid ===== */
+  .outline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .outline-card {
+    padding: 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .outline-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .outline-card .num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    opacity: 0.5;
+  }
+
+  .outline-card .title { font-size: 15px; font-weight: 600; margin-top: 4px; }
+  .outline-card .desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+
+  /* ===== Sidebar Toggle (Mobile) ===== */
+  .sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 250;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+    .main { margin-left: 0; padding: 24px 16px 60px; padding-top: 56px; }
+    .hero h1 { font-size: 26px; }
+    .chapter h2 { font-size: 20px; }
+    .method-tabs { overflow-x: auto; }
+    .compare-table { display: block; overflow-x: auto; }
+  }
+
+  html { scroll-behavior: smooth; }
+
+  /* ===== Section divider ===== */
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+
+<!-- ====== SIDEBAR ====== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>Vibe Coding<br>设计工作流 SOP</h2>
+    <span class="badge">v1.0</span>
+  </div>
+  <ul class="sidebar-nav">
+    <li><a href="#ch0"><span class="chapter-num">概</span>全文概览</a></li>
+    <li><div class="divider"></div></li>
+    <li><a href="#ch1"><span class="chapter-num">1</span>安装 MiniMax Agent</a></li>
+    <li><a href="#ch2"><span class="chapter-num">2</span>购买大模型 API</a></li>
+    <li><a href="#ch3"><span class="chapter-num">3</span>配置模型（三种方法）</a></li>
+    <li class="sub-nav"><a href="#ch3a"><span class="chapter-num">A</span>懒人方法：CCSwitch</a></li>
+    <li class="sub-nav"><a href="#ch3b"><span class="chapter-num">B</span>进阶方法：命令行</a></li>
+    <li class="sub-nav"><a href="#ch3c"><span class="chapter-num">C</span>进阶方法：VS Code 插件</a></li>
+    <li><div class="divider"></div></li>
+    <li><a href="#ch4"><span class="chapter-num">4</span>基础办公提效</a></li>
+    <li><a href="#ch5"><span class="chapter-num">5</span>设计工作流 — Figma</a></li>
+    <li><a href="#ch6"><span class="chapter-num">6</span>搭建 Figma MCP</a></li>
+    <li><a href="#ch7"><span class="chapter-num">7</span>完整工作流总览</a></li>
+  </ul>
+</aside>
+
+<!-- ====== MAIN CONTENT ====== -->
+<main class="main" id="mainContent">
+
+  <div class="content-inner">
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>Vibe Coding 设计工作流 SOP</h1>
+    <p class="subtitle">
+      从零开始，搭建以 Claude Code 为核心大脑、Figma 为设计交互界面的 AI 驱动开发工作流。涵盖环境配置、模型接入、日常办公提效、设计协作全流程。
+    </p>
+    <div class="meta">
+      <span>含办公场景</span>
+      <span>含设计工作流</span>
+      <span>Vibe Coding</span>
+    </div>
+  </section>
+
+  <!-- ==================== Ch0: Overview ==================== -->
+  <section class="chapter" id="ch0">
+    <div class="chapter-header">
+      <span class="chapter-num-big">概</span>
+      <h2>全文概览</h2>
+    </div>
+    <p>本文档是一份完整的 <strong>Vibe Coding 设计与办公工作流 SOP</strong>（标准作业程序），帮助你快速搭建以 <strong>Claude Code</strong> 为核心大脑、以 <strong>Figma</strong> 为设计交互界面的 AI 辅助工作环境。</p>
+    <p>所谓 <strong>Vibe Coding</strong>，是一种新兴的开发范式：你负责做决策和把控方向，AI 负责执行具体的代码编写、设计生成和任务处理——实现<strong>"你做决策，AI 做执行"</strong>的理想协作模式。</p>
+
+    <div class="outline-grid">
+      <a href="#ch1" class="outline-card">
+        <div class="num">01</div><div class="title">安装 MiniMax Agent</div>
+        <div class="desc">安装 Claude Code、CCSwitch、VS Code，配置基础环境变量</div>
+      </a>
+      <a href="#ch2" class="outline-card">
+        <div class="num">02</div><div class="title">购买大模型 API</div>
+        <div class="desc">在 DeepSeek 平台购买 API Key，绕过 Anthropic 网关限制</div>
+      </a>
+      <a href="#ch3" class="outline-card">
+        <div class="num">03</div><div class="title">配置模型（三种方法）</div>
+        <div class="desc">CCSwitch / 命令行 / VS Code 插件，任选其一接入模型</div>
+      </a>
+      <a href="#ch4" class="outline-card">
+        <div class="num">04</div><div class="title">基础办公提效</div>
+        <div class="desc">利用 Claude Code 处理日常办公任务，AI 提效</div>
+      </a>
+      <a href="#ch5" class="outline-card">
+        <div class="num">05</div><div class="title">设计工作流 — Figma</div>
+        <div class="desc">为 Claude Code 接入 Figma，实现"大脑 + 双手"协作</div>
+      </a>
+      <a href="#ch6" class="outline-card">
+        <div class="num">06</div><div class="title">搭建 Figma MCP</div>
+        <div class="desc">通过 MCP 协议连接 Claude Code 与 Figma，实现设计-代码双向同步</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ==================== Ch1: 安装 MiniMax Agent ==================== -->
+  <section class="chapter" id="ch1">
+    <div class="chapter-header">
+      <span class="chapter-num-big">1</span>
+      <h2>安装 MiniMax Agent</h2>
+    </div>
+
+    <p>在开始 Vibe Coding 之旅前，首先需要安装必要的桌面端工具。推荐使用 <strong>MiniMax Agent</strong> 作为一站式的环境安装入口，它可帮你自动完成 Claude Code、CCSwitch、Visual Studio Code 的安装，并配置好一系列环境变量，为后续工作奠定基础。</p>
+
+    <p>国内官网（含桌面端下载）：<br><a class="url-link" href="https://agent.minimaxi.com/" target="_blank">https://agent.minimaxi.com/</a></p>
+    <p>桌面端直连下载页：<br><a class="url-link" href="https://agent.minimaxi.com/download" target="_blank">https://agent.minimaxi.com/download</a></p>
+
+    <div class="image-container">
+      <img src="imgs/image1.png" alt="安装 MiniMax Agent" loading="lazy">
+      <div class="image-caption">图 1-1：安装 MiniMax Agent</div>
+    </div>
+
+    <p>利用 MiniMax Agent 安装 Claude Code、CCSwitch、Visual Studio Code，并配置好一系列环境变量，为后续工作流程做好铺垫。</p>
+
+    <div class="image-container">
+      <img src="imgs/image2.png" alt="MiniMax Agent 环境配置" loading="lazy">
+      <div class="image-caption">图 1-2：MiniMax Agent 环境配置</div>
+    </div>
+  </section>
+
+  <!-- ==================== Ch2: 购买大模型 API ==================== -->
+  <section class="chapter" id="ch2">
+    <div class="chapter-header">
+      <span class="chapter-num-big">2</span>
+      <h2>购买大模型 API</h2>
+    </div>
+
+    <p>由于 Claude Code 的母公司 Anthropic 对中国大陆存在网关限制，需要购买国内可访问的大模型 API 作为替代方案。推荐使用 <strong>DeepSeek</strong> 大模型或 <strong>Qwen（通义千问）</strong> 大模型等国产方案，这一步是为了绕开 Anthropic 内部模型对中国大陆的网关限制。</p>
+
+    <div class="image-container">
+      <img src="imgs/image3.png" alt="购买大模型 API" loading="lazy">
+      <div class="image-caption">图 2-1：购买大模型 API</div>
+    </div>
+
+    <p>官网：<a class="url-link" href="https://platform.deepseek.com/" target="_blank">https://platform.deepseek.com/</a></p>
+    <p>在 DeepSeek 开放平台注册并购买官方 API Key，按量计费，费用极低。</p>
+  </section>
+
+  <!-- ==================== Ch3: 配置模型 ==================== -->
+  <section class="chapter" id="ch3">
+    <div class="chapter-header">
+      <span class="chapter-num-big">3</span>
+      <h2>配置模型（三种方法任选其一）</h2>
+    </div>
+
+    <p>安装好一系列基础环境变量后，便可着手配置模型。以下提供三种配置方法，按难度从低到高排列。如果你是新手，直接选择 <strong>方法 A（懒人方法）</strong> 即可。</p>
+
+    <!-- Method Tabs -->
+    <div class="method-tabs" id="methodTabs">
+      <button class="method-tab active" data-method="a">方法 A<span class="tag easy">懒人首选</span></button>
+      <button class="method-tab" data-method="b">方法 B<span class="tag advanced">命令行</span></button>
+      <button class="method-tab" data-method="c">方法 C<span class="tag advanced">VS Code 插件</span></button>
+    </div>
+
+    <!-- ===== Method A: CCSwitch ===== -->
+    <div class="method-panel active" id="methodA">
+      <h4 id="ch3a">方法 A：懒人方法 — CCSwitch 图形化配置</h4>
+      <p>打开 CCSwitch（官网：<a class="url-link" href="https://ccswitch.ai/zh/" target="_blank">https://ccswitch.ai/zh/</a>），选择对应的模型供应商，填入对应模型商的 API Key（也就是你自己购买的模型的 Key），保存并运行即可。<strong>适合小白，无脑选择。</strong></p>
+
+      <div class="image-container">
+        <img src="imgs/image4.png" alt="CCSwitch 界面" loading="lazy">
+        <div class="image-caption">图 3-A1：CCSwitch 界面</div>
+      </div>
+
+      <div class="image-container">
+        <img src="imgs/image5.png" alt="CCSwitch 配置" loading="lazy">
+        <div class="image-caption">图 3-A2：CCSwitch 配置详情</div>
+      </div>
+
+      <p>在红框中填写你购买的 API Key，保存运行即可。打开 Visual Studio Code：</p>
+
+      <div class="image-container">
+        <img src="imgs/image6.png" alt="VS Code 配置" loading="lazy">
+        <div class="image-caption">图 3-A3：VS Code 配置界面</div>
+      </div>
+
+      <p>在左侧插件市场安装 Claude Code 插件，安装完成后就可以直接使用。</p>
+
+      <div class="image-container">
+        <img src="imgs/image7.png" alt="安装 Claude Code 插件" loading="lazy">
+        <div class="image-caption">图 3-A4：在左侧插件市场安装 Claude Code</div>
+      </div>
+    </div>
+
+    <!-- ===== Method B: 命令行 ===== -->
+    <div class="method-panel" id="methodB">
+      <h4 id="ch3b">方法 B：进阶方法 — 命令行配置</h4>
+      <p>调用 Windows 终端（<span class="inline-code">Win + X</span> / <span class="inline-code">Win + R</span> → 输入 <span class="inline-code">powershell</span>），并输入以下命令。这里以 DeepSeek V4 为案例：</p>
+
+      <p><strong>命令：</strong></p>
+      <div class="code-block">
+        <div class="code-header"><span class="lang">PowerShell</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+        <pre><code><span class="var">$env:ANTHROPIC_BASE_URL</span>=<span class="str">"https://api.deepseek.com/anthropic"</span>
+<span class="var">$env:ANTHROPIC_AUTH_TOKEN</span>=<span class="str">"你的api key"</span>
+<span class="var">$env:ANTHROPIC_MODEL</span>=<span class="str">"deepseek-v4-pro[1m]"</span>
+<span class="var">$env:ANTHROPIC_DEFAULT_OPUS_MODEL</span>=<span class="str">"deepseek-v4-pro[1m]"</span>
+<span class="var">$env:ANTHROPIC_DEFAULT_SONNET_MODEL</span>=<span class="str">"deepseek-v4-pro[1m]"</span>
+<span class="var">$env:ANTHROPIC_DEFAULT_HAIKU_MODEL</span>=<span class="str">"deepseek-v4-flash"</span>
+<span class="var">$env:CLAUDE_CODE_SUBAGENT_MODEL</span>=<span class="str">"deepseek-v4-flash"</span>
+<span class="var">$env:CLAUDE_CODE_EFFORT_LEVEL</span>=<span class="str">"max"</span></code></pre>
+      </div>
+
+      <div class="image-container">
+        <img src="imgs/image8.png" alt="PowerShell 命令输入" loading="lazy">
+        <div class="image-caption">图 3-B1：PowerShell 命令输入</div>
+      </div>
+
+      <div class="info-card warning">
+        <span class="icon">⚠️</span>
+        <div class="content">
+          <strong>注意</strong>
+          <p><span class="inline-code">ANTHROPIC_AUTH_TOKEN</span> 需要手动输入你自己的 API Key，不要直接复制占位文本。</p>
+        </div>
+      </div>
+
+      <p>以上变量环境配置好后，在终端输入 <span class="inline-code">claude</span> 就可以运行 Claude Code：</p>
+
+      <div class="image-container">
+        <img src="imgs/image9.png" alt="终端输入 claude" loading="lazy">
+        <div class="image-caption">图 3-B2：在终端输入 claude 运行</div>
+      </div>
+
+      <div class="image-container">
+        <img src="imgs/image10.png" alt="确认启动" loading="lazy">
+        <div class="image-caption">图 3-B3：确认启动 Claude Code</div>
+      </div>
+
+      <p>选择 <strong>Yes</strong> 确认：</p>
+
+      <div class="image-container">
+        <img src="imgs/image11.png" alt="选择 Yes 确认" loading="lazy">
+        <div class="image-caption">图 3-B4：选择 Yes 确认启动</div>
+      </div>
+    </div>
+
+    <!-- ===== Method C: VS Code 插件 ===== -->
+    <div class="method-panel" id="methodC">
+      <h4 id="ch3c">方法 C：进阶方法 — VS Code 插件 + Settings 文件</h4>
+      <p>打开安装好的 Visual Studio Code，在左侧插件栏中安装 <strong>Claude Code 官方插件</strong>。</p>
+
+      <div class="info-card warning">
+        <span class="icon">⚠️</span>
+        <div class="content">
+          <strong>关于 Settings 文件</strong>
+          <p>Settings 文件名<strong>没有扩展名</strong>（不是 <span class="inline-code">settings.json</span>）。如果目录下没有该文件，需要手动新建一个 txt 文档并重命名为 <span class="inline-code">settings</span>。</p>
+        </div>
+      </div>
+
+      <p>回到电脑端，打开用户目录，找到 <span class="inline-code">.claude</span> 母根目录，找到 settings 文件。若无 settings 文件，需要手动新建一个 txt 文档并命名为 <strong>settings</strong>（无扩展名）。</p>
+
+      <div class="image-container">
+        <img src="imgs/image6.png" alt="VS Code 插件安装" loading="lazy">
+        <div class="image-caption">图 3-C1：VS Code 插件安装</div>
+      </div>
+
+      <div class="image-container">
+        <img src="imgs/image12.png" alt="VS Code 中 .claude 目录" loading="lazy">
+        <div class="image-caption">图 3-C2：VS Code 中 .claude 目录与 settings 文件</div>
+      </div>
+
+      <div class="image-container">
+        <img src="imgs/image13.png" alt="新建 settings 文件" loading="lazy">
+        <div class="image-caption">图 3-C3：新建 settings 文件</div>
+      </div>
+
+      <p>打开 settings 文件，复制以下配置代码：</p>
+
+      <div class="code-block">
+        <div class="code-header"><span class="lang">JSON — .claude/settings</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+        <pre><code>{
+  <span class="str">"hasCompletedOnboarding"</span>: <span class="kw">true</span>,
+  <span class="str">"env"</span>: {
+    <span class="str">"ANTHROPIC_BASE_URL"</span>: <span class="str">"https://api.deepseek.com/anthropic"</span>,
+    <span class="str">"ANTHROPIC_AUTH_TOKEN"</span>: <span class="str">"你的api key"</span>,
+    <span class="str">"ANTHROPIC_MODEL"</span>: <span class="str">"deepseek-v4-pro"</span>,
+    <span class="str">"CLAUDE_CODE_DISABLE_OFFICIAL_AUTH"</span>: <span class="str">"1"</span>
+  }
+}</code></pre>
+      </div>
+
+      <div class="info-card warning">
+        <span class="icon">⚠️</span>
+        <div class="content">
+          <strong>重要</strong>
+          <p><span class="inline-code">ANTHROPIC_AUTH_TOKEN</span> 必须替换为你自己的 API Key。</p>
+        </div>
+      </div>
+
+      <p>保存 settings 文件后，重启 Anthropic 服务，打开 Claude Code 便可使用。</p>
+
+      <div class="image-container">
+        <img src="imgs/image7.png" alt="Settings 配置完成" loading="lazy">
+        <div class="image-caption">图 3-C4：配置完成后重启即可使用</div>
+      </div>
+    </div>
+
+    <!-- 方法对比表 -->
+    <h3>三种方法对比</h3>
+    <table class="compare-table">
+      <thead>
+        <tr><th>维度</th><th>方法 A：CCSwitch</th><th>方法 B：命令行</th><th>方法 C：VS Code 插件</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>难度</strong></td><td>⭐ 低</td><td>⭐⭐⭐ 中高</td><td>⭐⭐ 中等</td></tr>
+        <tr><td><strong>适合人群</strong></td><td>新手 / 小白用户</td><td>有命令行经验的开发者</td><td>熟悉 VS Code 的用户</td></tr>
+        <tr><td><strong>灵活性</strong></td><td>一般</td><td>最高</td><td>较高</td></tr>
+        <tr><td><strong>配置方式</strong></td><td>图形化界面，无需输入命令</td><td>逐条输入环境变量</td><td>手动编辑 JSON 文件</td></tr>
+        <tr><td><strong>推荐指数</strong></td><td>⭐⭐⭐⭐⭐</td><td>⭐⭐⭐</td><td>⭐⭐⭐⭐</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ==================== Ch4: 基础办公提效 ==================== -->
+  <section class="chapter" id="ch4">
+    <div class="chapter-header">
+      <span class="chapter-num-big">4</span>
+      <h2>基础办公提效</h2>
+    </div>
+
+    <p>看到这里可能有点难以理解，没关系，就看<strong>懒人方法 A</strong> 就好了。到这一步，你就初步完成了 <strong>Vibe Coding 的第一步</strong>。</p>
+
+    <p>当然，传统的办公工作到这里就可以结束了，Claude Code 已经足以满足你大部分日常工作需求，可以利用 AI 来提升工作效率了。</p>
+
+    <div class="info-card success">
+      <span class="icon">🎯</span>
+      <div class="content">
+        <strong>里程碑</strong>
+        <p>恭喜！你已经拥有了一个世界顶尖级别的 AI Agent。每天打开 VS Code 中的 Claude Code，用自然语言让它帮你写代码、分析数据、撰写文档、处理文件，实现日常办公全面提效。</p>
+      </div>
+    </div>
+
+    <div class="info-card tip">
+      <span class="icon">💡</span>
+      <div class="content">
+        <strong>小贴士</strong>
+        <p>如果你只需要日常办公提效，到这里就可以停下了。但如果你希望进一步利用 AI 进行 UI/UX 设计工作，请继续阅读下面的设计工作流章节。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== Ch5: 设计工作流 — Figma ==================== -->
+  <section class="chapter" id="ch5">
+    <div class="chapter-header">
+      <span class="chapter-num-big">5</span>
+      <h2>设计工作流 — Figma</h2>
+    </div>
+
+    <p>在我们有了基础的 Claude Code 这个世界顶尖级别的 Agent 后，我们就需要为它<strong>接入手和脚</strong>。Claude Code 相当于是大脑，这个"手"的角色，我们选择 <strong>Figma</strong>。</p>
+
+    <p><strong>MCP</strong>（Model Context Protocol）可以理解为一个链接 Claude 和 Figma 的枢纽——通过 MCP，Claude Code 可以直接读取 Figma 设计稿、修改设计元素、创建组件、应用样式等。</p>
+
+    <p>需要先去 Figma 官网下载 Figma 桌面客户端，再去闲鱼购买一个 Figma 的年度教育会员账号（几十元即可获得完整专业功能）。</p>
+
+    <div class="image-container">
+      <img src="imgs/image14.png" alt="Figma 官网下载" loading="lazy">
+      <div class="image-caption">图 5-1：Figma 官网下载页面</div>
+    </div>
+
+    <p>官网：<a class="url-link" href="https://www.figma.com/downloads/" target="_blank">https://www.figma.com/downloads/</a></p>
+
+    <div class="info-card warning">
+      <span class="icon">⚠️</span>
+      <div class="content">
+        <strong>账号建议</strong>
+        <p>需要使用 MCP 调用的话，个人使用免费版的 Figma 是不够的，建议去闲鱼等平台购买 Figma 教育会员账号，价格实惠（几十元/年），提供完整的团队协作功能和组件库访问权限。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== Ch6: 搭建 Figma MCP ==================== -->
+  <section class="chapter" id="ch6">
+    <div class="chapter-header">
+      <span class="chapter-num-big">6</span>
+      <h2>搭建 Figma MCP</h2>
+    </div>
+
+    <p>直接对话 Claude Code，让它帮你搭建好 Figma MCP。等待 AI 验证通过 OAuth 认证后，就可以实现 Figma 和 Claude Code 的流畅协作体验——<strong>真正意义上实现"你做决策，AI 做执行"</strong>。</p>
+
+    <div class="image-container">
+      <img src="imgs/image15.png" alt="对话 Claude Code 搭建 Figma MCP" loading="lazy">
+      <div class="image-caption">图 6-1：直接对话 Claude Code 搭建 Figma MCP</div>
+    </div>
+
+    <div class="info-card tip">
+      <span class="icon">🔐</span>
+      <div class="content">
+        <strong>OAuth 认证说明</strong>
+        <p>MCP 使用 OAuth 2.0 标准协议进行安全认证。你只需在浏览器中点击"允许授权"，AI 会自动完成后续所有配置，无需手动编辑任何配置文件。</p>
+      </div>
+    </div>
+
+    <p>由 Claude Code 代码形式生成的网页 UI/UX 在 Figma 中都是以<strong>可编辑的设计元素</strong>体现的，这直接节省了设计师本身的时间，设计师可以把更多时间花在自身创意上。</p>
+
+    <div class="image-container">
+      <img src="imgs/image16.png" alt="Figma MCP 工作流成果" loading="lazy">
+      <div class="image-caption">图 6-2：Claude Code + Figma MCP 工作流最终效果</div>
+    </div>
+  </section>
+
+  <!-- ==================== Ch7: 完整工作流总览 ==================== -->
+  <section class="chapter" id="ch7">
+    <div class="chapter-header">
+      <span class="chapter-num-big">7</span>
+      <h2>完整工作流总览</h2>
+    </div>
+
+    <p>至此，你已经完整搭建了从环境配置到设计协作的全链路 Vibe Coding 工作流。</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">端到端工作流管道</span></div>
+      <pre><code>┌──────────────────────────────────────────────────────────────┐
+│  Step 1: 安装 MiniMax Agent                                  │
+│  ├─ 下载并安装 MiniMax Agent 桌面端                            │
+│  ├─ 自动安装 Claude Code + CCSwitch + VS Code                │
+│  └─ 配置基础环境变量                                          │
+├──────────────────────────────────────────────────────────────┤
+│  Step 2: 购买大模型 API                                       │
+│  ├─ DeepSeek / Qwen 平台注册并购买 API Key                   │
+│  └─ 绕过 Anthropic 对中国大陆的网关限制                        │
+├──────────────────────────────────────────────────────────────┤
+│  Step 3: 配置模型（三选一）                                    │
+│  ├─ 方法 A: CCSwitch 图形化配置（推荐新手）                    │
+│  ├─ 方法 B: PowerShell 命令行配置                            │
+│  └─ 方法 C: VS Code 插件 + settings 文件                     │
+├──────────────────────────────────────────────────────────────┤
+│  Step 4: Claude Code 日常办公                                 │
+│  ├─ 代码编写 · 文档撰写 · 数据分析 · 文件批处理               │
+│  └─ 用自然语言驱动 AI 完成日常工作                             │
+├──────────────────────────────────────────────────────────────┤
+│  Step 5: 下载 Figma + 准备账号                                │
+│  ├─ 官网下载 Figma 桌面客户端                                 │
+│  └─ 闲鱼购买教育会员账号（可选，几十元/年）                    │
+├──────────────────────────────────────────────────────────────┤
+│  Step 6: 搭建 Figma MCP                                       │
+│  ├─ 对话 Claude Code 自动配置 MCP 连接                        │
+│  ├─ OAuth 认证通过后即可使用                                  │
+│  └─ 设计稿 ↔ 代码 双向同步                                    │
+├──────────────────────────────────────────────────────────────┤
+│  🎯 最终形态："你做决策，AI 做执行"                            │
+│  ├─ 需求描述 → Claude Code 理解 → Figma 生成设计稿            │
+│  ├─ Figma 设计稿 → Claude Code 识别 → 自动生成前端代码         │
+│  └─ 迭代修改 → 自然语言指令 → AI 实时响应                      │
+└──────────────────────────────────────────────────────────────┘</code></pre>
+    </div>
+
+    <h3>最佳实践 & 注意事项</h3>
+
+    <div class="info-card tip">
+      <span class="icon">💡</span>
+      <div class="content">
+        <strong>先跑通再优化</strong>
+        <p>不要试图一次完美配置所有环节。建议先用方法 A（CCSwitch）快速跑通 Claude Code 基础功能，确认可用后再逐步探索设计工作流。</p>
+      </div>
+    </div>
+
+    <div class="info-card warning">
+      <span class="icon">⚠️</span>
+      <div class="content">
+        <strong>API Key 安全</strong>
+        <p>切勿将 API Key 上传到 GitHub 等公开平台。建议定期在 DeepSeek 后台轮换 API Key，避免因泄露导致费用异常。</p>
+      </div>
+    </div>
+
+    <div class="info-card tip">
+      <span class="icon">🔧</span>
+      <div class="content">
+        <strong>模型选择策略</strong>
+        <p>复杂任务使用 <span class="inline-code">deepseek-v4-pro</span>（对应 Opus/Sonnet 级别），简单任务使用 <span class="inline-code">deepseek-v4-flash</span>（对应 Haiku/SubAgent 级别），在效果和成本之间取得平衡。</p>
+      </div>
+    </div>
+
+    <div class="info-card success">
+      <span class="icon">🚀</span>
+      <div class="content">
+        <strong>持续迭代</strong>
+        <p>AI 工具生态日新月异。建议关注 MiniMax Agent、Claude Code、Figma 的官方更新日志，及时升级到最新版本以获得更好的体验和更多功能。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--text-secondary); font-size: 13px;">
+    <p>Vibe Coding 设计工作流 SOP · 让 AI 成为你的超级助手</p>
+  </footer>
+  </div><!-- /content-inner -->
+
+</main>
+
+<button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
+
+<!-- ====== SCRIPTS ====== -->
+<script>
+  // Scroll progress bar
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    document.getElementById('scrollProgress').style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+  });
+
+  // Back to top
+  const backBtn = document.getElementById('backToTop');
+  window.addEventListener('scroll', () => backBtn.classList.toggle('visible', window.scrollY > 500));
+  backBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  // Sidebar active tracking via IntersectionObserver
+  const chapters = document.querySelectorAll('.chapter[id]');
+  const navAnchors = document.querySelectorAll('.sidebar-nav a');
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navAnchors.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-80px 0px -60% 0px' });
+
+  chapters.forEach(s => obs.observe(s));
+
+  // Mobile sidebar toggle
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebar = document.getElementById('sidebar');
+
+  sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+  // Sidebar nav click: smooth scroll to target section
+  navAnchors.forEach(a => {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      const targetId = this.getAttribute('href');
+      if (targetId && targetId.startsWith('#')) {
+        const target = document.querySelector(targetId);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+          // Manually set active state immediately
+          navAnchors.forEach(na => na.classList.remove('active'));
+          this.classList.add('active');
+        }
+      }
+      if (window.innerWidth <= 768) sidebar.classList.remove('open');
+    });
+  });
+
+  // Close sidebar on outside click (mobile)
+  document.addEventListener('click', (e) => {
+    if (window.innerWidth <= 768 && !sidebar.contains(e.target) && e.target !== sidebarToggle && !sidebarToggle.contains(e.target)) {
+      sidebar.classList.remove('open');
+    }
+  });
+
+  // Keyboard: Esc closes sidebar
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') sidebar.classList.remove('open'); });
+
+  // Method tabs
+  document.querySelectorAll('.method-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const m = tab.dataset.method;
+      document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.method-panel').forEach(p => {
+        p.classList.toggle('active', p.id === 'method' + m.toUpperCase());
+      });
+    });
+  });
+
+  // Copy code button
+  function copyCode(btn) {
+    const code = btn.closest('.code-block').querySelector('code').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '已复制!';
+      btn.style.background = '#1b3d1b';
+      btn.style.color = '#3fb950';
+      setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 2000);
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '已复制!';
+      setTimeout(() => { btn.textContent = '复制'; }, 2000);
+    });
+  }
+
+  // Outline card smooth scroll
+  document.querySelectorAll('.outline-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href) {
+        e.preventDefault();
+        document.querySelector(href).scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
